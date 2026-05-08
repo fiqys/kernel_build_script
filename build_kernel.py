@@ -271,7 +271,25 @@ def build_dtbo_images():
     dtbo_dir = arch_dts / "samsung" / TARGET_DEVICE
     dtb_dir = arch_dts / "exynos"
 
-    dtbo_files = sorted(dtbo_dir.glob("*.dtbo"))
+    # Read the exact build order from the kernel source Makefile
+    makefile_path = KERNEL_SOURCE_DIR / "arch" / ARCH / "boot" / "dts" / "samsung" / TARGET_DEVICE / "Makefile"
+    
+    ordered_dtbos = []
+    if makefile_path.exists():
+        with open(makefile_path, "r") as f:
+            for line in f:
+                m = re.search(r'dtb-y\s*\+=\s*(\S+\.dtbo)', line)
+                if m:
+                    p = dtbo_dir / m.group(1)
+                    if p.exists():
+                        ordered_dtbos.append(p)
+
+    # Use the Makefile order, or log and fallback to alphabetical
+    if ordered_dtbos:
+        dtbo_files = ordered_dtbos
+    else:
+        log_message("WARNING: Could not determine dtbo order from Makefile, falling back to alphabetical sort.")
+        dtbo_files = sorted(dtbo_dir.glob("*.dtbo"))
     dtb_files = sorted(dtb_dir.glob("*.dtb"))
 
     if not dtbo_files:
